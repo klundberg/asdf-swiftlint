@@ -2,18 +2,62 @@
 
 set -eo pipefail
 
-# Determine OS type
+normalize_version() {
+  # Strip leading 'v' and any pre-release/build metadata (after '-')
+  local v="$1"
+  v="${v#v}"
+  v="${v%%-*}"
+  echo "$v"
+}
+
+version_ge() {
+  # Returns 0 (true) if $1 >= $2, using numeric semver comparison (major.minor.patch)
+  local v1 v2
+  v1=$(normalize_version "$1")
+  v2=$(normalize_version "$2")
+
+  IFS='.' read -r a1 b1 c1 <<<"$v1"
+  IFS='.' read -r a2 b2 c2 <<<"$v2"
+  a1=${a1:-0}; b1=${b1:-0}; c1=${c1:-0}
+  a2=${a2:-0}; b2=${b2:-0}; c2=${c2:-0}
+
+  if (( a1 > a2 )); then return 0; fi
+  if (( a1 < a2 )); then return 1; fi
+  if (( b1 > b2 )); then return 0; fi
+  if (( b1 < b2 )); then return 1; fi
+  if (( c1 >= c2 )); then return 0; fi
+  return 1
+}
+
+# Determine OS type and archive name
 case "$OSTYPE" in
 darwin*)
-	ARCHIVE_NAME="portable_swiftlint"
-	;;
+  ARCHIVE_NAME="portable_swiftlint"
+  ;;
 linux*)
-	ARCHIVE_NAME="swiftlint_linux"
-	;;
+  # SwiftLint 0.60.0+ splits Linux archives by architecture
+  if version_ge "$ASDF_INSTALL_VERSION" "0.60.0"; then
+    uname_m=$(uname -m)
+    case "$uname_m" in
+      x86_64|amd64)
+        ARCHIVE_NAME="swiftlint_linux_amd64"
+        ;;
+      aarch64|arm64)
+        ARCHIVE_NAME="swiftlint_linux_arm64"
+        ;;
+      *)
+        echo "Unsupported Linux architecture: $uname_m"
+        exit 1
+        ;;
+    esac
+  else
+    ARCHIVE_NAME="swiftlint_linux"
+  fi
+  ;;
 *)
-	echo "Unsupported OS: $OSTYPE"
-	exit 1
-	;;
+  echo "Unsupported OS: $OSTYPE"
+  exit 1
+  ;;
 esac
 
 DOWNLOAD_URL="https://github.com/realm/SwiftLint/releases/download/$ASDF_INSTALL_VERSION/$ARCHIVE_NAME.zip"

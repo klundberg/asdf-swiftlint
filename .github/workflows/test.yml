@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   lint:
@@ -14,24 +14,30 @@ jobs:
     runs-on: macOS-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ASDF
-        run: git clone https://github.com/asdf-vm/asdf.git $HOME/asdf
+      - name: Install mise
+        run: |
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Test plugin
         env:
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          . $HOME/asdf/asdf.sh
-          asdf plugin-test swiftlint $GITHUB_WORKSPACE 'swiftlint version'
+          mise plugin link swiftlint $GITHUB_WORKSPACE
+          mise install swiftlint@latest
+          mise exec swiftlint -- swiftlint version
 
   plugin-test-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ASDF
-        run: git clone https://github.com/asdf-vm/asdf.git $HOME/asdf
+      - name: Install mise
+        run: |
+          curl https://mise.run | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
       - name: Test plugin
         env:
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          . $HOME/asdf/asdf.sh
-          asdf plugin-test swiftlint $GITHUB_WORKSPACE 'swiftlint version'
+          mise plugin link swiftlint $GITHUB_WORKSPACE
+          mise install swiftlint@latest
+          mise exec swiftlint -- swiftlint version
